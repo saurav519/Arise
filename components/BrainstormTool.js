@@ -47,23 +47,25 @@ export default function AIBrainstormTool() {
     setResult(null);
 
     try {
-      // YOUR API KEY HERE - Replace with your actual Anthropic API key
-      const API_KEY = 'sk-ant-api03-pLh...wwAA';
-      
+      if (!process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY) {
+        throw new Error('API key not configured');
+      }
+
       // Call Anthropic Claude API
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': API_KEY,
-          'anthropic-version': '2023-06-01'
+          'anthropic-version': '2023-06-01',
+          'x-api-key': process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY,
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20250929',
+          model: 'claude-3-sonnet-20240229',
           max_tokens: 4096,
+          system: "You are a strategic business consultant with expertise in generating actionable business strategies.",
           messages: [{
             role: 'user',
-            content: `You are a strategic business consultant. Analyze the following company and generate 6 highly specific, actionable ideas for their ${formData.sessionType} strategy.
+            content: `Generate strategic ideas for the following business: Analyze the following company and generate 6 highly specific, actionable ideas for their ${formData.sessionType} strategy.
 
 Company: ${formData.companyName}
 Product/Service: ${formData.product}
@@ -105,11 +107,18 @@ Format your response as JSON:
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'API error');
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error?.message || `API error: ${response.status}`);
       }
 
       const data = await response.json();
-      const content = data.content[0].text;
+      
+      if (!data.content || typeof data.content !== 'string') {
+        console.error('Unexpected API response format:', data);
+        throw new Error('Invalid API response format');
+      }
+      
+      const content = data.content;
       
       // Extract JSON from response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
