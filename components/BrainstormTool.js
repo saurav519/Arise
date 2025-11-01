@@ -47,8 +47,10 @@ export default function AIBrainstormTool() {
     setResult(null);
 
     try {
-      if (!process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY) {
-        throw new Error('API key not configured');
+      const apiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
+      if (!apiKey || apiKey === 'your-api-key-here') {
+        console.error('API Key missing or invalid:', apiKey);
+        throw new Error('Please configure your Anthropic API key in .env.local');
       }
 
       // Call Anthropic Claude API
