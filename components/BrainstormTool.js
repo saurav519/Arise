@@ -47,14 +47,97 @@ export default function AIBrainstormTool() {
     setResult(null);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 2500));
+      // YOUR API KEY HERE - Replace with your actual Anthropic API key
+      const API_KEY = 'sk-ant-api03-pLh...wwAA';
       
+      // Call Anthropic Claude API
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5-20250929',
+          max_tokens: 4096,
+          messages: [{
+            role: 'user',
+            content: `You are a strategic business consultant. Analyze the following company and generate 6 highly specific, actionable ideas for their ${formData.sessionType} strategy.
+
+Company: ${formData.companyName}
+Product/Service: ${formData.product}
+Timeline: ${formData.timeline}
+Goals: ${formData.goals}
+Session Type: ${sessionTypes.find(t => t.value === formData.sessionType).label}
+
+First, provide a brief understanding of their business context, competitive landscape, and key insights (2-3 sentences for context, 3-4 bullet points for insights, and if applicable, a competitive landscape analysis mentioning specific competitors and market data).
+
+Then generate exactly 6 ideas. For each idea, provide:
+1. Title (specific to their company/product)
+2. Description (2-3 sentences, actionable)
+3. Priority (High/Medium/Low)
+4. Effort (High/Medium/Low)
+5. Impact (High/Medium/Low)
+6. Reasoning (1 sentence explaining why this matters for their specific goals)
+
+Format your response as JSON:
+{
+  "understanding": {
+    "context": "brief context",
+    "insights": ["insight1", "insight2", "insight3"],
+    "competitorInfo": "competitive analysis or null"
+  },
+  "ideas": [
+    {
+      "title": "Specific Idea Title",
+      "description": "Detailed description",
+      "priority": "High",
+      "effort": "Medium",
+      "impact": "High",
+      "reasoning": "Why this matters"
+    }
+  ]
+}`
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'API error');
+      }
+
+      const data = await response.json();
+      const content = data.content[0].text;
+      
+      // Extract JSON from response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('Invalid response format');
+      }
+      
+      const aiResult = JSON.parse(jsonMatch[0]);
+      
+      setResult({
+        understanding: {
+          company: formData.companyName,
+          product: formData.product,
+          insights: aiResult.understanding.insights,
+          focus: sessionTypes.find(t => t.value === formData.sessionType).label,
+          competitorInfo: aiResult.understanding.competitorInfo,
+          context: aiResult.understanding.context
+        },
+        ideas: aiResult.ideas
+      });
+      
+    } catch (err) {
+      console.error('API Error:', err);
+      
+      // Fallback to local generation if API fails
       const understanding = generateUnderstanding(formData);
       const ideas = generateIdeas(formData, understanding);
-      
       setResult({ understanding, ideas });
-    } catch (err) {
-      setError('Unable to generate ideas. Please check your input and try again.');
     } finally {
       setLoading(false);
     }
@@ -646,7 +729,7 @@ export default function AIBrainstormTool() {
                     </div>
                     
                     {/* Hover indicator */}
-                    <div className="h-1 bg-gradient-to-r from-blue-800 to-indigo-900 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+                    <div className="h-1 bg-gradient-to-r from-indigo-600 to-purple-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
                   </div>
                 ))}
               </div>
